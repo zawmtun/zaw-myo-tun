@@ -3,8 +3,8 @@
 text_align_right: false
 show_title_as_headline: false
 headline: |
-  Hi, my name is Emily Cooper. Nice to meet you.
+  Zaw Myo Tun
 ---
 
 <!-- this is a subheadline -->
-I'm a driven 20-something American from Chicago who moved to Paris for an unexpected job opportunity. I've been tasked with bringing an American point of view to a venerable French marketing firm. :fr:
+I am an epidemiologist with a keen interest in infectious diseases, particularly in tuberculosis. I am medically trained in Myanmar, and received a masters degree in epidemiology from the London School of Hygiene and Tropical Medicine. Currently, I am pursuing a PhD in public health in Singapore.
