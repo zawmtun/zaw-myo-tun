@@ -1,5 +1,5 @@
 ---
-title: 
+title: Blog
 description: |
 author: ""
 show_post_thumbnail: false
