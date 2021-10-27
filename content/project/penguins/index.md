@@ -26,6 +26,10 @@ links:
   icon_pack: far
   name: Blog post
   url: https://education.rstudio.com/blog/2020/07/palmerpenguins-cran/
+- icon: twitter
+  icon_pack: far
+  name: Tweet @zawmtun
+  url: https://education.rstudio.com/blog/2020/07/palmerpenguins-cran/
 ---
 
 {{< here >}}
