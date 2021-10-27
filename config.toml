@@ -1,7 +1,7 @@
 baseURL = "/"
 theme = "hugo-apero"
 languageCode = "en"
-title = "Personal website of Zaw Myo Tun"
+title = "Zaw Myo Tun"
 author = "Zaw Myo Tun"
 copyright = "" # set to override the auto generated copyright using org info and now year
 googleAnalytics = ""
@@ -106,6 +106,16 @@ enableEmoji = true
     title = "Blog"
     url = "/blog/"
     weight = 2
+#  [[menu.header]]
+#    name = "Projects"
+#    title = "Project Portfolio"
+#    url = "/project/"
+#    weight = 3
+#  [[menu.header]]
+#    name = "Talks"
+#    title = "Talks"
+#    url = "/talk/"
+#    weight = 4
     
   # Configure footer  
   [[menu.footer]]

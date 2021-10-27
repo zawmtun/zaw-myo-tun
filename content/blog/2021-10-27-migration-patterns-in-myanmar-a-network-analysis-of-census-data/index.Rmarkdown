@@ -1,0 +1,392 @@
+---
+title: 'Migration patterns in Myanmar: a network analysis of census data'
+author: Zaw Myo Tun
+date: '2021-06-01'
+slug: myanmar-census-2014-migration-patterns
+categories:
+  - Data analysis
+tags:
+  - Myanmar
+  - census
+  - R
+  - network analysis
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, echo = FALSE)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readxl)
+library(tidygraph)
+library(gt)
+library(here)
+library(knitr)
+library(flextable)
+# library(cowplot)
+# library(sf)
+# library(ggraph)
+# library(tmap)
+```
+
+The latest [Myanmar population and household census](https://www.dop.gov.mm/en/population-censuses-myanmar) was conducted in March 2014 by the Ministry of Immigration and Population. It was the first national census since 1983. The aim was to count every person in the country on 29 March 2014 (census night) and to collect demographic, social, and economic data.  
+
+In this analysis, I looked at migration between states and regions. Myanmar is administratively divided into 7 states, 7 regions, one union territory, 5 self-administered zones, and one self-administered division. Data were available for states, regions, and the union territory.   
+
+I used data from a table of aggregated numbers in which the state/region of usual residence was tabulated against previous residence or place of birth, segregated by sex. In addition, people were also asked the main reasons for migrating. These data were collected using a household questionnaire from almost 11 million conventional households. The data table (xlsx, 52 KB) is  [available](http://www.dop.gov.mm/sites/dop.gov.mm/files/datamap-documents/union_eng_group_c.xlsx) on the Ministry of Immigration and Population website. The main census report (pdf, 16 MB) can be downloaded [here](http://www.dop.gov.mm/sites/dop.gov.mm/files/publication_docs/census_main_report_union_-_english_2.pdf).  
+
+## Network analysis
+
+Migration was inferred if the previous residence or birth place (state/region) reported by a person is different from his or her usual residence. I constructed networks based on the migration data using nodes and directed edges. Nodes represent the state/region while edges represent migration with the direction of the arrow pointing to the destination state/region. Edges are weighted by the number of migrants.  
+
+Two networks were constructed: one for migrating from previous residence to usual residence, and another from birth place to usual residence. The former may be interpreted as recent migration patterns while the latter can be thought of as cumulative trend over longer time period although each interpretation has limitations.   
+
+Both networks were completely connected as population movements happened across all states/regions. To understand how connected the nodes are, I ranked them based on their reported population influx and outflow. In addition, I calculated *migratory flux* for each state/region, defined as the number of population inflow divided by outflow; a value of one means that the volume of migrant inflow and outflow are balanced. A value smaller than one means that there were more people moving out than moving in and vice versa if the value is greater than one.  
+
+Below are network representations in which I used circles and arrows to represent nodes and edges, respectively. The node size corresponds to their migratory flux values. The node colour represents the group the node belongs to based on a grouping algorithm (See below for more details). The edge width represents the volume of migrants and their colours are the same as the nodes they emerge from. For clarity, colours were added only to the edges that represents 50,000 or more migrants. All other edges were gray-ed.  
+
+```{r recent_data}
+census_data <- here::here(
+  "data",
+  "2021-06-01-myanmar-census-2014-migration-patterns",
+  "census_2014_main_report",
+  "union_eng_group_c.xlsx"
+)
+
+recent_move <- read_excel(
+  census_data,
+  sheet = "Table C-2",
+  skip = 3
+)
+
+current_residence <- recent_move %>%
+  filter(is.na(Total)) %>%
+  slice(-n()) %>%
+  pull(`...1`)
+
+recent_move_all <- recent_move %>%
+    select(-Total) %>%
+    slice(-n()) %>%
+    filter(!is.na(Kachin)) %>%
+    bind_cols(current_residence = rep(current_residence, each = 3)) %>%
+    filter(current_residence != "UNION") %>%
+    rename(sex = `...1`) %>%
+    filter(sex == "Both sexes") %>%
+    select(-sex) %>%
+    pivot_longer(-current_residence,
+                 names_to = "previous_residence",
+                 values_to = "pop_move") %>%
+    rename(from = previous_residence,
+           to = current_residence) %>%
+    filter(from != to) %>%
+    filter(from != "Outside Myanmar", to != "Outside Myanmar")
+
+# > Migratory flux ----------------------------------------------------------
+
+recent_total_in <- recent_move_all %>%
+  count(to, wt = pop_move) %>%
+  rename(movein = n)
+
+recent_total_out <- recent_move_all %>%
+  count(from, wt = pop_move) %>%
+  rename(moveout = n)
+
+recent_flux <- recent_total_in %>%
+  left_join(recent_total_out, by = c("to" = "from")) %>%
+  mutate(migratory_flux = movein/moveout) %>%
+  select(name = to, migratory_flux)
+
+# > Construct network -------------------------------------------------------
+
+recent_all <- recent_move_all %>%
+  as_tbl_graph() %>%
+  activate(nodes) %>%
+  left_join(recent_flux, by = c("name")) %>%
+  mutate(indegree = centrality_degree(mode = "in"),
+         indegree_wt = centrality_degree(weight = pop_move, mode = "in"),
+         outdegree = centrality_degree(mode = "in"),
+         outdegree_wt = centrality_degree(weight = pop_move, mode = "out"))
+
+recent_all_community <- recent_move_all %>%
+  filter(from != to) %>%
+  as_tbl_graph(directed = FALSE) %>%
+  convert(to_simple) %>%
+  activate(edges) %>%
+  mutate(pop_move_sum = map_dbl(.orig_data, ~ sum(.x$pop_move))) %>%
+  activate(nodes) %>%
+  mutate(community = group_fast_greedy(weights = pop_move_sum)) %>%
+  as_tibble()
+
+recent_all_new <- recent_all %>%
+  activate(nodes) %>%
+  left_join(recent_all_community, by = "name") %>%
+  activate(edges) %>%
+  left_join(recent_all_community %>% select(-name),
+            by = c("from" = ".tidygraph_node_index")) %>%
+  mutate(edge_col = case_when(pop_move < 50000 ~ 3,
+                              TRUE ~ as.double(community)),
+         edge_col = factor(edge_col))
+```
+
+```{r birth_data}
+birth_move <- read_excel(
+  census_data,
+  sheet = "Table C-1",
+  skip = 3
+)
+
+current_residence <- birth_move %>%
+  filter(is.na(Total)) %>%
+  slice(-n()) %>%
+  pull(`...1`)
+  
+birth_move_all <- birth_move %>%
+    select(-Total) %>%
+    slice(-n()) %>%
+    filter(!is.na(Kachin)) %>%
+    bind_cols(current_residence = rep(current_residence, each = 3)) %>%
+    filter(current_residence != "UNION") %>%
+    rename(sex = `...1`) %>%
+    filter(sex == "Both sexes") %>%
+    select(-sex) %>%
+    pivot_longer(-current_residence,
+                 names_to = "birth_place",
+                 values_to = "pop_move") %>%
+    rename(from = birth_place,
+           to = current_residence) %>%
+    filter(from != to) %>%
+    filter(from != "Outside Myanmar", to != "Outside Myanmar")
+
+# > Migratory flux ----------------------------------------------------------
+
+birth_total_in <- birth_move_all %>%
+  count(to, wt = pop_move) %>%
+  rename(movein = n)
+
+birth_total_out <- birth_move_all %>%
+  count(from, wt = pop_move) %>%
+  rename(moveout = n)
+
+birth_flux <- birth_total_in %>%
+  left_join(birth_total_out, by = c("to" = "from")) %>%
+  mutate(migratory_flux = movein/moveout) %>%
+  select(name = to, migratory_flux)
+
+# > Construct network -------------------------------------------------------
+
+birth_all <- birth_move_all %>%
+  as_tbl_graph() %>%
+  activate(nodes) %>%
+  left_join(birth_flux, by = c("name")) %>%
+  mutate(indegree = centrality_degree(mode = "in"),
+         indegree_wt = centrality_degree(weight = pop_move, mode = "in"),
+         outdegree = centrality_degree(mode = "in"),
+         outdegree_wt = centrality_degree(weight = pop_move, mode = "out"))
+
+birth_all_community <- birth_move_all %>%
+  filter(from != to) %>%
+  as_tbl_graph(directed = FALSE) %>%
+  convert(to_simple) %>%
+  activate(edges) %>%
+  mutate(pop_move_sum = map_dbl(.orig_data, ~ sum(.x$pop_move))) %>%
+  activate(nodes) %>%
+  mutate(community = group_fast_greedy(weights = pop_move_sum)) %>%
+  as_tibble()
+
+birth_all_new <- birth_all %>%
+  activate(nodes) %>%
+  left_join(birth_all_community, by = "name") %>%
+  activate(edges) %>%
+  left_join(birth_all_community %>% select(-name),
+            by = c("from" = ".tidygraph_node_index")) %>%
+  mutate(edge_col = case_when(pop_move < 50000 ~ 3,
+                              TRUE ~ as.double(community)),
+         edge_col = factor(edge_col))
+```
+
+
+```{r eval = FALSE}
+edge_col <- c("#7EA8CC", "#CC817E", "gray90")
+my_col <- edge_col[-3]
+options("scipen" = 100, "digits" = 4)
+
+p1 <- recent_all_new %>%
+  activate(edges) %>% 
+  arrange(desc(edge_col)) %>% 
+  ggraph(layout = "kk") +
+  geom_edge_arc(
+    aes(width = pop_move, colour = edge_col),
+    show.legend = FALSE,
+    strength = 0.4,
+    edge_alpha = 0.5,
+    arrow = arrow(length = unit(2, "mm"), type = "closed"),
+    end_cap = circle(9, "mm")
+  ) +
+  scale_edge_color_manual(values = edge_col) +
+  geom_node_point(
+    aes(size = migratory_flux, col = factor(community)),
+    alpha = 0.9,
+    show.legend = FALSE
+  ) +
+  scale_size(limits = c(0, 6),
+             range = c(7, 15),
+             breaks = c(1, 3, 5),
+             name = "Migratory flux") +
+  scale_color_manual(values = my_col,
+                     name = "Group") +
+  geom_node_text(aes(label = name),
+                 fontface = "bold",
+                 size = 4,
+                 repel = TRUE) +
+  theme_graph() 
+
+p2 <- birth_all_new %>%
+  activate(edges) %>% 
+  arrange(desc(edge_col)) %>% 
+  ggraph(layout = "kk") +
+  geom_edge_arc(
+    aes(width = pop_move, colour = edge_col),
+    show.legend = FALSE,
+    strength = 0.4,
+    edge_alpha = 0.5,
+    arrow = arrow(length = unit(2, "mm"), type = "closed"),
+    end_cap = circle(9, "mm")
+  ) +
+  scale_edge_color_manual(values = edge_col) +
+  geom_node_point(
+    aes(size = migratory_flux, col = factor(community)),
+    alpha = 0.9
+  ) +
+  scale_size(limits = c(0, 6),
+             range = c(7, 15),
+             breaks = c(1, 3, 5),
+             name = "Migratory flux") +
+  scale_color_manual(values = my_col,
+                     name = "Group") +
+  geom_node_text(aes(label = name),
+                 fontface = "bold",
+                 size = 4,
+                 repel = TRUE) +
+  theme_graph() +
+  theme(legend.position = "bottom",
+        legend.box.just = "center")
+
+p <- plot_grid(p1, p2, ncol = 1,
+               rel_heights = c(0.9, 1),
+               labels = c("A", "B"))
+
+title <- ggdraw() +
+  draw_label("Network representation of population migration between states/regions:\n(A) From previous residence to usual residence; (B) From birth place\nto usual residence", vjust = 0)
+
+p_save <- plot_grid(p, title, ncol = 1, rel_heights = c(1, 0.05))
+cowplot::save_plot(here::here("output", "graphs", "network.png"), p_save, base_width = 7, base_height = 15)
+```
+
+![](/blog/2021-06-01-myanmar-census-2014-migration-patterns/network.png)
+
+Migration patterns of both networks were very similar with almost identical main features. In both networks, Yangon received the highest volume of migrants from many states and region with most migrants moved from Ayeyawady and Bago regions. Top three states/regions with the highest influx of migrants were Yangon, Mandalay, and Shan while the top three with the highest outflow were Ayeyawady, Bago, and Mandalay. Migratory flux is highest in Yangon, Kayin, and Nay Pyi Taw and lowest in Ayeyawady, Chin, and Magway.  
+
+The migration patterns within each network were diverse. Yangon is the most populated region in the country and is where the commercial capital is located. With the highest migratory flux value, recent migration patterns show that Yangon Region has received migrants almost four times as many as its population outflow. Mandalay Region has one of the highest in both population inflow and outflow. With a migratory flux of approximately one, Mandalay Region has a very high population turnover. I observed similar migration patterns between men and women when the data were analysed separately (results not shown).  
+
+The table below shows the number of migrants moving in and out of each state/region, sorted by the migratory flux.  
+
+```{r}
+recent_flux <- recent_total_in %>%
+  left_join(recent_total_out, by = c("to" = "from")) %>%
+  mutate(migratory_flux = movein/moveout) %>%
+  rename(name = to,
+         wt_in_recent = movein,
+         wt_out_recent = moveout,
+         flux_recent = migratory_flux)
+
+birth_flux <- birth_total_in %>%
+  left_join(birth_total_out, by = c("to" = "from")) %>%
+  mutate(migratory_flux = movein/moveout) %>%
+  rename(name = to,
+         wt_in_birth = movein,
+         wt_out_birth = moveout,
+         flux_birth = migratory_flux)
+
+net_measures <- left_join(recent_flux, birth_flux, by = "name") %>% 
+  arrange(desc(flux_recent)) |> 
+  mutate(across(c(flux_recent, flux_birth), round, digits = 2))
+
+net_measures |> 
+  flextable() |> 
+  set_header_labels(values = list(
+    name = "State/region",
+    wt_in_recent = "Population influx",
+    wt_out_recent = "Population outflow",
+    flux_recent = "Migratory flux",
+    wt_in_birth = "Population influx",
+    wt_out_birth = "Population outflow",
+    flux_birth = "Migratory flux"
+  )) |> 
+  add_header_row(
+    values = c("", "From previous residence to usual residence",
+               "From birth place to usual residence"),
+    colwidths = c(1, 3, 3)
+  ) |> 
+  align(align = "center", part = "header") |> 
+  bold(part = "header") |> 
+  footnote(i = 1, j = c(4, 7),
+           value = as_paragraph("Overall number of migrants moving in divided by those moving out of a state/region"),
+           part = "header")
+```
+
+## Data-driven grouping of the states and regions
+
+I used a data-driven technique called [*hierarchical clustering*](https://en.wikipedia.org/wiki/Hierarchical_clustering) and grouped the states and regions. It is an iterative process in which highly connected nodes are merged together using fast-greedy algorithm. Through this process, the group membership is determined by maximising the node connectedness within the group while minimising the connectedness between the groups.   
+
+Two groups of states/regions emerged from this analysis. Interestingly, the states/regions in each group were geographically proximal to each together with one group located in the south around the coastal region and the other located in-land in the north.   
+
+This grouping pattern is robust and consistent in both networks, in overall analysis and in subgroup analysis by sex (results not shown).    
+
+```{r eval = FALSE}
+recent_all_community <- recent_all_community %>%
+  mutate(name = ifelse(name == "Ayeyawady", "Ayeyarwady", name))
+
+mmr_sr <- st_read(
+  here::here(
+    "ext",
+    "mmr_polbnda_adm1_250k_mimu",
+    "mmr_polbnda_adm1_250k_mimu.shp"
+  ),
+  quiet = TRUE
+) %>%
+  left_join(recent_all_community, by = c("ST" = "name")) %>%
+  mutate(community_col = ifelse(community == 1, "#7EA8CC", "#CC817E"))
+
+map <- tm_shape(mmr_sr) +
+  tm_polygons(col = "community_col") +
+  tm_text(text = "ST",
+          size = 0.5,
+          fontface = "bold") +
+  tm_layout(frame = FALSE)
+
+tmap_save(
+  map,
+  here::here("output", "graphs", "map_group.png"),
+  width = 4,
+  units = "in"
+)
+```
+
+<center>
+
+![](/blog/2021-06-01-myanmar-census-2014-migration-patterns/map_group.png){width=60%}
+
+</center>
+
+According to the main census report, most people appear to move for economic reasons; 41% of migrants (majority were women) cited following families and 34% (mostly men) cited employment as the main reasons (See the plot below). Therefore, the two distinct migration patterns may suggest distinct ways of organising the economy. More data are necessary to look at this further.  
+
+![**Main reasons for migration (screenshot from the census main report)**](/blog/2021-06-01-myanmar-census-2014-migration-patterns/census_2014_reasons_for_migration.png)
+
+## Caveats
+
+We need to have some caveats in mind while interpreting the data. These data do not include population in  "institutional household": for example, old-people’s homes, orphanages, hospitals, boarding schools, hotels, hostels and guest houses, institutions for persons with disabilities, prisons, monasteries, convents, military and police barracks, and camps for workers.  
+
+Another caveat is the lack of information on the timeframe of migration. Without this information, it is difficult to interpret the recency of these patterns and how they change over time.  
