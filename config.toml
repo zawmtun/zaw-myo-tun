@@ -1,4 +1,4 @@
-baseURL = "www.zaw.netlify.app"
+baseURL = "/"
 theme = "hugo-apero"
 languageCode = "en"
 title = "Personal website of Zaw Myo Tun"
