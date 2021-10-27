@@ -1,7 +1,7 @@
 ---
 title: "Zaw Myo Tun"
 subtitle: "Epidemiologist"
-description: "This is my personal website."
+description: "I am a medically trained epidemiologist. I have a keen interest in infectious diseases and data driven programming to solve public health problems."
 date: 2019-02-18T12:27:33-06:00
 images:
   - img/zmt.jpg
