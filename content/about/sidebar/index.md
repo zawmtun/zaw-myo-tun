@@ -8,12 +8,12 @@ show_audio_link: true
 audio_link_label: "How to say my name"
 link_list_label: "Interests" # bookmarks, elsewhere, etc.
 link_list:
-- name: Paris
-  url: https://en.wikipedia.org/wiki/Paris
-- name: Pastries
-  url: https://en.wikipedia.org/wiki/Pastry
-- name: People
-  url: https://en.wikipedia.org/wiki/People
+- name: Tuberculosis
+  url: http://www.stoptb.org/
+- name: Antimicrobial resistance
+  url: https://www.who.int/news-room/fact-sheets/detail/antimicrobial-resistance
+- name: R for epidemiologists
+  url: https://epirhandbook.com/en/
 ---
 
 ** index doesn't contain a body, just front matter above.
