@@ -1,7 +1,7 @@
 ---
 title: "Zaw Myo Tun"
 subtitle: "Epidemiologist"
-description: "I am a medically trained epidemiologist. I have a keen interest in infectious diseases and data driven programming."
+description: "I am a medically trained epidemiologist with a keen interest in infectious diseases and data driven programming."
 date: 2019-02-18T12:27:33-06:00
 images:
   - img/zmt.jpg

@@ -11,3 +11,4 @@ I am an epidemiologist with a keen interest in infectious diseases. I have worke
 
 I am passionate about data driven programming. I use R avidly in my data analyses. I am particularly interested in workflows involving both R and Excel as I work with many people who use Excel as their primary data tool.     
 
+Check out my publications on [ORCID](https://orcid.org/0000-0002-7035-4600).
