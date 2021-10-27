@@ -1,4 +1,4 @@
-baseURL = "/"
+baseURL = "www.zaw.netlify.app"
 theme = "hugo-apero"
 languageCode = "en"
 title = "Personal website of Zaw Myo Tun"
@@ -84,7 +84,7 @@ enableEmoji = true
   [[params.social]]
       icon      = "linkedin" # icon name without the 'fa-'
       icon_pack = "fab"
-      url       = " www.linkedin.com/in/zawmyotun11"
+      url       = "https://linkedin.com/in/zawmyotun11"
   [[params.social]]
       icon      = "rss" # icon name without the 'fa-'
       icon_pack = "fas"
@@ -98,7 +98,7 @@ enableEmoji = true
 [menu]
   [[menu.header]]
     name = "About"
-    title = "About Blogophonic"
+    title = "About Zaw Myo Tun"
     url = "/about/"
     weight = 1
   [[menu.header]]
