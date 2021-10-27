@@ -7,4 +7,4 @@ headline: |
 ---
 
 <!-- this is a subheadline -->
-I am an epidemiologist with a keen interest in infectious diseases, particularly in tuberculosis. I am medically trained in Myanmar, and received a masters degree in epidemiology from the London School of Hygiene and Tropical Medicine. Currently, I am pursuing a PhD in public health in Singapore.
+I am an epidemiologist with a keen interest in infectious diseases, particularly in tuberculosis. I received my medical degree in Myanmar and a MSc in epidemiology from the London School of Hygiene and Tropical Medicine. I use R avidly in my data analyses. Currently, I am based in Singapore pursuing a PhD in public health.
