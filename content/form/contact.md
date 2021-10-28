@@ -1,7 +1,7 @@
 ---
-title: Contact
-name: Contact Form
-description: ""
+title: Contact me
+name: Personal website contact form
+description: "I am open to collaboration. If you have any good ideas or suggestions, you can write to me here or reach me through social media."
 date: 2019-02-25T13:38:41-06:00
 draft: false
 url: contact
