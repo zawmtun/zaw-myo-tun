@@ -1,6 +1,6 @@
 ---
 title: Contact
-name: Contact Us Form
+name: Contact Form
 description: ""
 date: 2019-02-25T13:38:41-06:00
 draft: false
@@ -10,8 +10,9 @@ layout: split-right # split-right or split-left
 submit_button_label: Send Message
 show_social_links: false # specify social accounts in site config
 show_poweredby_formspree: true
-formspree_form_id: zawmyotun11@gmail.com
+formspree_form_id: https://formspree.io/f/mbjqevnq
 ---
 
 ** Contact page don't contain a body, just the front matter above.
 See form.html in the layouts folder **
+
